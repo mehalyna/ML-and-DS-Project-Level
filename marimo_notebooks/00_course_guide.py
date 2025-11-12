@@ -480,7 +480,7 @@ def _(mo):
       - `02_sprint_02_advanced_nlp.py` - Sprint 2 detailed guide
       - `03_sprint_03_prod_ui.py` - Sprint 3 detailed guide
 
-    **Good luck with your project! **
+    **Good luck with your project!**
     """)
     return
 
