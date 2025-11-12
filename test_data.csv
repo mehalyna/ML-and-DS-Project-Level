@@ -1,0 +1,31 @@
+source,timestamp,customer_id,text,product_id,rating,sentiment,text_cleaned
+email,2025-11-12 20:29:26.734212,CUST_1000,Great product! Fast delivery and excellent quality.,PROD_A,5,positive,great product fast delivery and excellent quality
+chat,2025-11-11 20:29:26.734212,CUST_1001,Love this! Will definitely buy again.,PROD_B,4,positive,love this will definitely buy again
+email,2025-11-10 20:29:26.734212,CUST_1002,Good value for money. Satisfied with my purchase.,PROD_A,5,positive,good value for money satisfied with my purchase
+email,2025-11-09 20:29:26.734212,CUST_1003,Fantastic! Exceeded my expectations.,PROD_A,4,positive,fantastic exceeded my expectations
+chat,2025-11-08 20:29:26.734212,CUST_1004,Amazing quality and great customer service.,PROD_B,4,positive,amazing quality and great customer service
+chat,2025-11-07 20:29:26.734212,CUST_1005,Best purchase I have made in a long time.,PROD_D,4,positive,best purchase i have made in a long time
+social,2025-11-06 20:29:26.734212,CUST_1006,Highly recommend this product to everyone.,PROD_C,4,positive,highly recommend this product to everyone
+chat,2025-11-05 20:29:26.734212,CUST_1007,Excellent experience from start to finish.,PROD_D,5,positive,excellent experience from start to finish
+survey,2025-11-04 20:29:26.734212,CUST_1008,Perfect! Just what I was looking for.,PROD_B,4,positive,perfect just what i was looking for
+survey,2025-11-03 20:29:26.734212,CUST_1009,Outstanding quality and fast shipping.,PROD_A,4,positive,outstanding quality and fast shipping
+social,2025-11-02 20:29:26.734212,CUST_1010,The item arrived damaged. Very disappointed.,PROD_A,2,negative,the item arrived damaged very disappointed
+survey,2025-11-01 20:29:26.734212,CUST_1011,Worst purchase ever. Do not recommend.,PROD_C,1,negative,worst purchase ever do not recommend
+social,2025-10-31 20:29:26.734212,CUST_1012,The product description was misleading. Expected better quality.,PROD_A,2,negative,the product description was misleading expected better quality
+email,2025-10-30 20:29:26.734212,CUST_1013,Terrible quality. Requesting a refund.,PROD_C,2,negative,terrible quality requesting a refund
+chat,2025-10-29 20:29:26.734212,CUST_1014,Poor customer service and defective product.,PROD_A,1,negative,poor customer service and defective product
+chat,2025-10-28 20:29:26.734212,CUST_1015,Waste of money. Very unsatisfied.,PROD_C,1,negative,waste of money very unsatisfied
+chat,2025-10-27 20:29:26.734212,CUST_1016,Product broke after one use. Disappointing.,PROD_A,2,negative,product broke after one use disappointing
+survey,2025-10-26 20:29:26.734212,CUST_1017,Not as described. Very frustrating experience.,PROD_D,2,negative,not as described very frustrating experience
+chat,2025-10-25 20:29:26.734212,CUST_1018,Horrible. Would give zero stars if possible.,PROD_C,2,negative,horrible would give zero stars if possible
+chat,2025-10-24 20:29:26.734212,CUST_1019,Do not buy this. Complete waste.,PROD_C,1,negative,do not buy this complete waste
+chat,2025-10-23 20:29:26.734212,CUST_1020,Average experience. Product is okay but customer service could be better.,PROD_B,3,neutral,average experience product is okay but customer service could be better
+social,2025-10-22 20:29:26.734212,CUST_1021,It is fine. Nothing special but does the job.,PROD_D,3,neutral,it is fine nothing special but does the job
+chat,2025-10-21 20:29:26.734212,CUST_1022,Decent product for the price. Could be improved.,PROD_C,3,neutral,decent product for the price could be improved
+chat,2025-10-20 20:29:26.734212,CUST_1023,Okay purchase. Met basic expectations.,PROD_A,3,neutral,okay purchase met basic expectations
+social,2025-10-19 20:29:26.734212,CUST_1024,Acceptable quality. Not great but not terrible.,PROD_C,3,neutral,acceptable quality not great but not terrible
+chat,2025-10-18 20:29:26.734212,CUST_1025,Standard product. Nothing to complain about.,PROD_C,3,neutral,standard product nothing to complain about
+social,2025-10-17 20:29:26.734212,CUST_1026,Fair value. Works as expected.,PROD_D,3,neutral,fair value works as expected
+chat,2025-10-16 20:29:26.734212,CUST_1027,Mediocre experience overall. Could be better.,PROD_C,3,neutral,mediocre experience overall could be better
+chat,2025-10-15 20:29:26.734212,CUST_1028,It is alright. Does what it should.,PROD_C,3,neutral,it is alright does what it should
+social,2025-10-14 20:29:26.734212,CUST_1029,Average quality. Gets the job done.,PROD_C,3,neutral,average quality gets the job done

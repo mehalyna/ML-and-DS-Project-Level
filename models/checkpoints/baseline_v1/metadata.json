@@ -1,0 +1,10 @@
+{
+  "model_type": "LogisticRegression",
+  "features": "TF-IDF",
+  "accuracy": 0.25,
+  "date_trained": "2025-11-12",
+  "hyperparameters": {
+    "max_iter": 1000,
+    "random_state": 42
+  }
+}
