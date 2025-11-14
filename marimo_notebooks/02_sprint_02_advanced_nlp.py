@@ -17,30 +17,18 @@ def _(mo):
 
     Welcome to **Sprint 2** of the Customer Feedback Insight Platform! Building on Sprint 1's foundation, this sprint focuses on advanced NLP techniques to significantly improve model performance through transformer-based models, topic modeling, and text summarization.
 
-    ## IMPORTANT: Windows Setup Required
-
-    **If you're on Windows and get a DLL error when importing PyTorch/Transformers:**
-
-    You need to install Microsoft Visual C++ Redistributable:
-    1. Download: [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-    2. Run the installer
-    3. Restart your terminal/marimo
-    4. Reactivate your virtual environment
-
-    This is a one-time system requirement for PyTorch on Windows.
-
-    ---
-
     ## Sprint Goals
 
     By the end of Sprint 2, you will have:
-    - Fine-tuned transformer model for sentiment analysis
-    - Topic modeling pipeline with coherent clusters
-    - Extractive and abstractive summarization
+    - Advanced sentiment analysis with ensemble models (VADER + TF-IDF)
+    - Topic modeling pipeline with coherent clusters (Gensim LDA)
+    - Extractive summarization using multiple algorithms (TextRank, LexRank, LSA)
     - Comprehensive comparison with baseline models
     - Human-validated topic coherence
 
     **Timeline:** Weeks 3-4 | **Demo:** End of Week 4
+
+    **Note:** This notebook uses lightweight libraries (VADER, Gensim, Sumy) for production-ready NLP without heavy dependencies.
     """)
     return
 
@@ -54,10 +42,10 @@ def _(mo):
 
     ### Required Outputs
 
-    1. **Fine-tuned Transformer** - Improved sentiment classifier (BERT/DistilBERT/RoBERTa)
-    2. **Topic Modeling Pipeline** - BERTopic or LDA with interpretable topics
-    3. **Extractive Summarizer** - TextRank or similar algorithm
-    4. **Abstractive Prototype** - Simple transformer-based summarization
+    1. **Advanced Sentiment Pipeline** - Ensemble model combining VADER + TF-IDF
+    2. **Topic Modeling Pipeline** - Gensim LDA with interpretable topics
+    3. **Extractive Summarizers** - Multiple algorithms (TextRank, LexRank, LSA)
+    4. **Algorithm Comparison** - Performance analysis across methods
     5. **Comparison Notebook** - Metrics comparing baseline vs advanced models
     6. **Error Analysis** - Confusion cases and improvement areas
 
@@ -81,7 +69,7 @@ def _(mo):
     ### Theory: Why Transformers?
 
     **Limitations of Traditional Models:**
-    - **Bag-of-Words (TF-IDF):** Ignores word order and context
+    - **TF-IDF:** Ignores word order and context
     - **No semantic understanding:** "not good" vs "good" treated independently
     - **Limited feature engineering:** Manual feature selection required
 
@@ -113,9 +101,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Practical Example: Fine-tuning DistilBERT
-
-    Let's fine-tune a DistilBERT model for sentiment analysis:
+    ### Practical Example: VADER Sentiment Analysis
     """)
     return
 
@@ -177,7 +163,7 @@ def _():
 
     print(f"Dataset size: {len(df)}")
     print(f"Class distribution:\n{df['sentiment'].value_counts()}")
-    return df, pd
+    return df, np, pd
 
 
 @app.cell
@@ -195,143 +181,185 @@ def _(df):
 
     print(f"Training samples: {len(train_texts)}")
     print(f"Validation samples: {len(val_texts)}")
-    return train_labels, train_texts, val_labels, val_texts
+    return (train_texts,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Transformer Tokenization
+    ### VADER in Action
 
-    Transformers use specialized tokenizers that break text into subword units:
+    Let's analyze some feedback with VADER:
     """)
     return
 
 
 @app.cell
 def _(train_texts):
-    from transformers import AutoTokenizer
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-    # Load pre-trained tokenizer
-    model_name = "distilbert-base-uncased"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # Initialize VADER
+    vader = SentimentIntensityAnalyzer()
 
-    # Example tokenization
-    sample_text = train_texts[0]
-    tokens = tokenizer.tokenize(sample_text)
-    token_ids = tokenizer.encode(sample_text)
+    # Analyze sample texts
+    print("VADER Sentiment Analysis Examples:\n")
 
-    print(f"Original text: {sample_text}")
-    print(f"\nTokens: {tokens}")
-    print(f"\nToken IDs: {token_ids}")
-    print(f"\nVocabulary size: {tokenizer.vocab_size}")
-    return model_name, tokenizer
+    for i, text in enumerate(train_texts[:5]):
+        scores = vader.polarity_scores(text)
+
+        # Determine sentiment from compound score
+        if scores['compound'] >= 0.05:
+            sentiment = 'POSITIVE'
+        elif scores['compound'] <= -0.05:
+            sentiment = 'NEGATIVE'
+        else:
+            sentiment = 'NEUTRAL'
+
+        print(f"{i+1}. Text: {text}")
+        print(f"   Compound: {scores['compound']:.3f} → {sentiment}")
+        print(f"   Details: pos={scores['pos']:.2f}, neu={scores['neu']:.2f}, neg={scores['neg']:.2f}\n")
+    return (vader,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Model Training Setup
+    ### Ensemble Approach: Combining Multiple Methods
 
-    For demonstration purposes, we'll show the setup. In practice, you'd train on larger datasets with GPU support:
+    Instead of relying on a single method, we can combine VADER with our baseline TF-IDF model:
     """)
     return
 
 
 @app.cell
-def _(tokenizer, train_labels, train_texts, val_labels, val_texts):
-    from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer
-    import torch
-    from torch.utils.data import Dataset
+def _(df, vader):
+    def _():
+        import pandas as pd
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import classification_report, accuracy_score
 
-    # Custom dataset class
-    class FeedbackDataset(Dataset):
-        def __init__(self, texts, labels, tokenizer, max_length=128):
-            self.texts = texts
-            self.labels = labels
-            self.tokenizer = tokenizer
-            self.max_length = max_length
+        # Get VADER scores for all texts
+        vader_scores = []
+        for text in df['text']:
+            scores = vader.polarity_scores(text)
+            vader_scores.append([
+                scores['compound'],
+                scores['pos'],
+                scores['neu'],
+                scores['neg']
+            ])
 
-        def __len__(self):
-            return len(self.texts)
+        # Combine with TF-IDF features
+        vectorizer = TfidfVectorizer(max_features=50, ngram_range=(1, 2))
+        tfidf_features = vectorizer.fit_transform(df['text']).toarray()
 
-        def __getitem__(self, idx):
-            text = self.texts[idx]
-            label = self.labels[idx]
+        # Stack features
+        import numpy as np
+        X_combined = np.hstack([tfidf_features, np.array(vader_scores)])
+        y = df['label'].values
 
-            encoding = self.tokenizer(
-                text,
-                add_special_tokens=True,
-                max_length=self.max_length,
-                padding='max_length',
-                truncation=True,
-                return_tensors='pt'
-            )
+        # Train/test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_combined, y, test_size=0.3, random_state=42, stratify=y
+        )
 
-            return {
-                'input_ids': encoding['input_ids'].flatten(),
-                'attention_mask': encoding['attention_mask'].flatten(),
-                'labels': torch.tensor(label, dtype=torch.long)
-            }
+        # Train ensemble model
+        ensemble_model = LogisticRegression(max_iter=1000, random_state=42)
+        ensemble_model.fit(X_train, y_train)
 
-    # Create datasets
-    train_dataset = FeedbackDataset(train_texts, train_labels, tokenizer)
-    val_dataset = FeedbackDataset(val_texts, val_labels, tokenizer)
+        # Predictions
+        y_pred = ensemble_model.predict(X_test)
 
-    print(f"Datasets created")
-    print(f"Training samples: {len(train_dataset)}")
-    print(f"Validation samples: {len(val_dataset)}")
-    return (AutoModelForSequenceClassification,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Training Configuration
-
-    **Note:** This is a demonstration setup. For real training:
-    - Use GPU if available (`device='cuda'`)
-    - Train for more epochs (3-5)
-    - Use larger datasets (1000+ samples)
-    - Monitor validation loss to avoid overfitting
-    """)
-    return
+        # Evaluation
+        accuracy = accuracy_score(y_test, y_pred)
+        print(f"Ensemble Model Accuracy: {accuracy:.2%}")
+        print(f"\nClassification Report:")
+        return print(classification_report(y_test, y_pred, target_names=['negative', 'neutral', 'positive']))
 
 
-@app.cell
-def _(AutoModelForSequenceClassification, model_name):
-    # Load pre-trained model
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name,
-        num_labels=3  # positive, negative, neutral
-    )
-
-    print(f"Model loaded: {model_name}")
-    print(f"Number of parameters: {model.num_parameters():,}")
+    _()
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Task 1: Fine-tune Transformer Model
+    ### Task 1: Build Advanced Sentiment Classifier
 
-    **Objective:** Train an improved sentiment classifier using transformers
+    **Objective:** Create an improved sentiment classifier using ensemble methods
 
     **Steps:**
-    1. Choose appropriate model (DistilBERT for speed, BERT for accuracy)
-    2. Prepare dataset with proper tokenization
-    3. Set up training arguments:
-       - Learning rate: 2e-5 to 5e-5
-       - Batch size: 16-32 (based on GPU memory)
-       - Epochs: 3-5
-       - Warmup steps: 500
-    4. Implement early stopping on validation loss
-    5. Track metrics: Accuracy, F1-score per class, Loss
-    6. Save best model checkpoint
-    7. Compare with Sprint 1 baseline
+    1. Implement VADER sentiment analysis
+    2. Extract TF-IDF features from text
+    3. Combine VADER scores with TF-IDF features
+    4. Train ensemble classifier (Logistic Regression or Random Forest)
+    5. Compare with Sprint 1 baseline
+    6. Analyze feature importance
 
-    **Acceptance:** Model achieves >10% improvement over baseline on validation set
+    **Alternative Approaches:**
+    - TextBlob for subjectivity analysis
+    - Domain-specific sentiment lexicons
+    - Weighted ensemble voting
+    - Stacking different classifiers
+
+    **Acceptance:** Model achieves >5% improvement over baseline
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ---
+
+    ## Part 2: Topic Modeling with Gensim LDA
+
+    ### Theory: Latent Dirichlet Allocation
+
+    **LDA discovers hidden topics by:**
+    1. Assuming each document is a mixture of topics
+    2. Each topic is a distribution over words
+    3. Using probabilistic inference to find topics
+
+    **Key Parameters:**
+    - `num_topics`: Number of topics to discover
+    - `alpha`: Document-topic density (lower = fewer topics per doc)
+    - `beta`: Topic-word density (lower = fewer words per topic)
+    - `passes`: Number of training iterations
+
+    **Preprocessing for LDA:**
+    - Remove stop words
+    - Lemmatization
+    - Create dictionary and corpus
+    - Filter extremes (very rare/common words)
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Task 1: Build Advanced Sentiment Classifier
+
+    **Objective:** Create an improved sentiment classifier using ensemble methods and advanced features
+
+    **Approach 1: VADER + Machine Learning Ensemble**
+    1. Extract VADER sentiment scores (compound, pos, neg, neu)
+    2. Extract TF-IDF features (unigrams + bigrams)
+    3. Extract additional features (text length, punctuation count, capitalization)
+    4. Combine all features
+    5. Train Random Forest or Gradient Boosting classifier
+    6. Compare with Sprint 1 baseline
+
+    **Approach 2: Advanced Feature Engineering**
+    1. Character n-grams for misspellings
+    2. Word embeddings (using pre-trained Word2Vec or GloVe)
+    3. POS tagging features
+    4. Named entity features
+
+    **Acceptance:** Model achieves >10% improvement over baseline
     """)
     return
 
@@ -354,21 +382,23 @@ def _(mo):
     - Group similar feedback
     - Track topic trends over time
 
-    ### Popular Approaches
+    ### Popular Approaches (Production-Ready)
 
     | Method | Approach | Pros | Cons |
     |--------|----------|------|------|
-    | **LDA** | Probabilistic | Interpretable, fast | Needs preprocessing, fixed topics |
-    | **NMF** | Matrix factorization | Fast, sparse | Linear only |
-    | **BERTopic** | Embeddings + clustering | State-of-art, dynamic | Slower, needs more data |
-    | **Top2Vec** | Embeddings only | No preprocessing | Less control |
+    | **LDA (Gensim)** | Probabilistic | Interpretable, fast, lightweight | Needs preprocessing, fixed topics |
+    | **NMF** | Matrix factorization | Fast, sparse, scikit-learn | Linear only |
+    | **LSA** | SVD-based | Very fast, simple | Less interpretable |
 
-    ### BERTopic Pipeline
+    **Note:** Advanced methods like BERTopic require PyTorch/transformers. For production deployment on Windows or resource-constrained environments, Gensim LDA provides excellent results with minimal dependencies.
 
-    1. **Generate embeddings** - Use sentence transformers
-    2. **Reduce dimensionality** - UMAP for visualization
-    3. **Cluster documents** - HDBSCAN for density-based clustering
-    4. **Extract topics** - c-TF-IDF for topic representation
+    ### Gensim LDA Pipeline
+
+    1. **Tokenize documents** - Split into words, remove stopwords
+    2. **Create dictionary** - Map words to IDs
+    3. **Build corpus** - Bag-of-words representation
+    4. **Train LDA model** - Extract latent topics with Dirichlet priors
+    5. **Evaluate coherence** - Validate semantic quality
     """)
     return
 
@@ -376,53 +406,71 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Practical Example: Topic Modeling with BERTopic
+    ### Practical Example: Topic Modeling with Gensim LDA
     """)
     return
 
 
 @app.cell
 def _(df):
-    from bertopic import BERTopic
-    from sentence_transformers import SentenceTransformer
+    # Use Gensim for topic modeling (lightweight, production-ready)
+    from gensim import corpora
+    from gensim.models import LdaModel
+    from gensim.parsing.preprocessing import STOPWORDS
+    import nltk
+
+    # Download required NLTK data (updated for NLTK 3.9+)
+    try:
+        nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        nltk.download('punkt_tab', quiet=True)
 
     # Prepare documents
     documents = df['text'].tolist()
 
-    # Initialize BERTopic with smaller embedding model for demo
-    embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    # Tokenize and remove stopwords
+    def preprocess(text):
+        tokens = nltk.word_tokenize(text.lower())
+        return [token for token in tokens if token.isalnum() and token not in STOPWORDS and len(token) > 2]
 
-    topic_model = BERTopic(
-        embedding_model=embedding_model,
-        min_topic_size=2,  # Small for demo dataset
-        nr_topics="auto",
-        verbose=True
+    processed_docs = [preprocess(doc) for doc in documents]
+
+    # Create dictionary and corpus
+    dictionary = corpora.Dictionary(processed_docs)
+    dictionary.filter_extremes(no_below=1, no_above=0.8)
+    corpus = [dictionary.doc2bow(doc) for doc in processed_docs]
+
+    # Train LDA model
+    num_topics = 3
+    lda_model = LdaModel(
+        corpus=corpus,
+        id2word=dictionary,
+        num_topics=num_topics,
+        random_state=42,
+        passes=10,
+        alpha='auto'
     )
 
-    # Fit the model
-    topics, probs = topic_model.fit_transform(documents)
-
-    print(f"Number of topics found: {len(set(topics)) - 1}")  # -1 excludes outliers (topic -1)
-    print(f"Number of outliers: {sum(1 for t in topics if t == -1)}")
-    return documents, topic_model, topics
-
-
-@app.cell
-def _(topic_model):
-    # Get topic information
-    topic_info = topic_model.get_topic_info()
-    topic_info
-    return
+    print(f"LDA model trained with {num_topics} topics")
+    return (
+        corpus,
+        dictionary,
+        documents,
+        lda_model,
+        nltk,
+        num_topics,
+        processed_docs,
+    )
 
 
 @app.cell
-def _(topic_model, topics):
-    # Show topics with their top words
-    for topic_id in set(topics):
-        if topic_id != -1:  # Skip outliers
-            topic_words = topic_model.get_topic(topic_id)
-            print(f"\nTopic {topic_id}:")
-            print(f"Top 5 words: {', '.join([word for word, score in topic_words[:5]])}")
+def _(lda_model, num_topics):
+    # Display topics
+    print("Discovered Topics:\n")
+    for idx in range(num_topics):
+        print(f"Topic {idx}:")
+        words = lda_model.show_topic(idx, topn=10)
+        print(f"  Top words: {', '.join([word for word, prob in words])}\n")
     return
 
 
@@ -431,33 +479,68 @@ def _(mo):
     mo.md(r"""
     ### Topic Visualization
 
-    BERTopic provides several visualization methods:
+    Let's create visualizations for our topics:
     """)
     return
 
 
 @app.cell
-def _(topic_model):
-    # Visualize topics (returns plotly figure)
-    fig_topics = topic_model.visualize_topics()
-    fig_topics
+def _(corpus, documents, lda_model, pd):
+    # Get dominant topic for each document
+    topic_assignments = []
+    for j, doc_bow in enumerate(corpus):
+        topic_dist = lda_model.get_document_topics(doc_bow)
+        if topic_dist:
+            dominant_topic = max(topic_dist, key=lambda x: x[1])[0]
+            topic_assignments.append(dominant_topic)
+        else:
+            topic_assignments.append(-1)
+
+        # Create summary dataframe
+    topic_summary = pd.DataFrame({
+        'Document': documents,
+        'Topic': topic_assignments
+    })
+
+    topic_counts = topic_summary['Topic'].value_counts().sort_index()
+    print("Documents per topic:")
+    print(topic_counts)
+
+    return (topic_counts,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Topic Distribution Visualization
+
+    Visualize how documents are distributed across topics:
+    """)
     return
 
 
 @app.cell
-def _(topic_model):
-    # Visualize topic hierarchy
-    fig_hierarchy = topic_model.visualize_hierarchy()
-    fig_hierarchy
-    return
+def _(topic_counts):
+    import plotly.graph_objects as go
 
+    # Create bar chart for topic distribution
+    fig_topic_dist = go.Figure(data=[
+        go.Bar(
+            x=[f"Topic {i}" for i in topic_counts.index],
+            y=topic_counts.values,
+            marker_color='lightblue'
+        )
+    ])
 
-@app.cell
-def _(documents, topic_model):
-    # Visualize documents (2D representation)
-    fig_docs = topic_model.visualize_documents(documents)
-    fig_docs
-    return
+    fig_topic_dist.update_layout(
+        title="Document Distribution Across Topics",
+        xaxis_title="Topic",
+        yaxis_title="Number of Documents",
+        height=400
+    )
+
+    fig_topic_dist
+    return (go,)
 
 
 @app.cell(hide_code=True)
@@ -474,7 +557,7 @@ def _(mo):
     4. **Representative documents:** Do sample documents match the topic?
 
     **Metrics:**
-    - **Topic coherence (C_v):** Measures semantic similarity of top words
+    - **Topic coherence (C_v):** Measures semantic similarity of top words (can use gensim.models.CoherenceModel)
     - **Topic diversity:** Percentage of unique words across topics
     - **Perplexity:** For LDA models (lower is better)
     """)
@@ -484,51 +567,28 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Practical Example: LDA Topic Modeling
+    ### Computing Topic Coherence
 
-    Let's also implement traditional LDA for comparison:
+    Let's calculate coherence score for our LDA model:
     """)
     return
 
 
 @app.cell
-def _(documents):
-    from sklearn.feature_extraction.text import CountVectorizer
-    from sklearn.decomposition import LatentDirichletAllocation
+def _(dictionary, lda_model, processed_docs):
+    from gensim.models import CoherenceModel
 
-    # Vectorize documents
-    vectorizer = CountVectorizer(
-        max_features=100,
-        stop_words='english',
-        min_df=2
+    # Calculate coherence score
+    coherence_model = CoherenceModel(
+        model=lda_model,
+        texts=processed_docs,
+        dictionary=dictionary,
+        coherence='c_v'
     )
 
-    doc_term_matrix = vectorizer.fit_transform(documents)
-
-    # Train LDA model
-    n_topics = 3
-    lda_model = LatentDirichletAllocation(
-        n_components=n_topics,
-        random_state=42,
-        max_iter=20
-    )
-
-    lda_topics = lda_model.fit_transform(doc_term_matrix)
-
-    print(f"LDA trained with {n_topics} topics")
-    return lda_model, n_topics, vectorizer
-
-
-@app.cell
-def _(lda_model, n_topics, vectorizer):
-    # Display LDA topics
-    feature_names = vectorizer.get_feature_names_out()
-
-    for idx in range(n_topics):
-        print(f"\nLDA Topic {idx}:")
-        top_indices = lda_model.components_[idx].argsort()[-10:][::-1]
-        top_words = [feature_names[i] for i in top_indices]
-        print(f"Top words: {', '.join(top_words)}")
+    coherence_score = coherence_model.get_coherence()
+    print(f"Topic Coherence Score (C_v): {coherence_score:.4f}")
+    print(f"Interpretation: {'Good' if coherence_score > 0.4 else 'Needs improvement'}")
     return
 
 
@@ -540,15 +600,17 @@ def _(mo):
     **Objective:** Create interpretable topic clusters from customer feedback
 
     **Steps:**
-    1. Choose approach: BERTopic (recommended) or LDA
+    1. Use Gensim LDA for lightweight, production-ready topic modeling
     2. Prepare data:
        - Clean and preprocess text
        - Remove very short documents (< 3 words)
+       - Tokenize and remove stopwords
     3. Configure parameters:
-       - BERTopic: min_topic_size, nr_topics
-       - LDA: n_components, learning_method
+       - `num_topics`: Number of topics to extract
+       - `passes`: Number of training iterations
+       - `alpha`: Document-topic density ('auto' for learned parameter)
     4. Train model and extract topics
-    5. Validate coherence with team members
+    5. Validate coherence with team members and coherence metrics
     6. Assign meaningful labels to topics
     7. Create visualization dashboard
     8. Save topic model for inference
@@ -576,25 +638,27 @@ def _(mo):
     **Extractive Summarization:**
     - Selects important sentences from original text
     - Preserves original wording
-    - Faster and more reliable
-    - Good for: Long documents, factual content
+    - Faster and more reliable (production-ready)
+    - Lower computational requirements
+    - Good for: Long documents, factual content, compliance/legal
 
     **Abstractive Summarization:**
-    - Generates new sentences
-    - More human-like
-    - Requires large models (T5, BART, GPT)
-    - Good for: Short creative summaries
+    - Generates new sentences (paraphrasing)
+    - More human-like and concise
+    - Requires large models or API services
+    - Higher risk of hallucinations
+    - Good for: Creative summaries, API-based workflows
 
-    ### Popular Algorithms
+    ### Popular Extractive Algorithms (Lightweight & Production-Ready)
 
-    | Method | Type | Complexity | Quality |
-    |--------|------|------------|---------|
-    | **TextRank** | Extractive | Low | Good |
-    | **LSA** | Extractive | Medium | Decent |
-    | **LexRank** | Extractive | Medium | Good |
-    | **BART** | Abstractive | High | Excellent |
-    | **T5** | Abstractive | High | Excellent |
-    | **Pegasus** | Abstractive | High | Best |
+    | Method | Approach | Complexity | Speed | Quality |
+    |--------|----------|------------|-------|---------|
+    | **TextRank** | Graph-based (PageRank) | Low | Fast | Good |
+    | **LexRank** | Graph + Lexical Similarity | Medium | Fast | Good |
+    | **LSA** | Latent Semantic Analysis | Medium | Fast | Decent |
+    | **Luhn** | Frequency-based | Very Low | Very Fast | Fair |
+
+    **For this course:** We focus on extractive methods using Sumy library (no PyTorch dependencies).
     """)
     return
 
@@ -602,50 +666,45 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Practical Example: Extractive Summarization with TextRank
+    ### Practical Example: Extractive Summarization with TextRank (TF-IDF based)
     """)
     return
 
 
 @app.cell
-def _():
-    import numpy as np
+def _(nltk, np):
     from sklearn.metrics.pairwise import cosine_similarity
-    from sentence_transformers import SentenceTransformer
-    import nltk
+    from sklearn.feature_extraction.text import TfidfVectorizer
 
-    # Download required NLTK data
+    # Download required NLTK data (updated for NLTK 3.9+)
     try:
-        nltk.data.find('tokenizers/punkt')
+        nltk.data.find('tokenizers/punkt_tab')
     except LookupError:
-        nltk.download('punkt', quiet=True)
+        nltk.download('punkt_tab', quiet=True)
 
     def textrank_summarize(text, num_sentences=2, embedding_model=None):
         """
-        Extractive summarization using TextRank algorithm.
+        Extractive summarization using TextRank algorithm with TF-IDF.
 
         Args:
             text: Input text to summarize
             num_sentences: Number of sentences to extract
-            embedding_model: SentenceTransformer model for embeddings
 
         Returns:
             Summary string
         """
-        if embedding_model is None:
-            embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-
         # Split into sentences
         sentences = nltk.sent_tokenize(text)
 
         if len(sentences) <= num_sentences:
             return text
 
-        # Generate embeddings
-        embeddings = embedding_model.encode(sentences)
+        # Use TF-IDF for sentence embeddings
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(sentences)
 
         # Calculate similarity matrix
-        similarity_matrix = cosine_similarity(embeddings)
+        similarity_matrix = cosine_similarity(tfidf_matrix)
 
         # Apply TextRank (PageRank on similarity graph)
         scores = np.ones(len(sentences))
@@ -671,7 +730,6 @@ def _():
     Customer service was helpful when I reached out. 
     Overall, it's an okay product but not worth the premium price.
     """
-
     summary = textrank_summarize(long_text, num_sentences=2)
     print("Original text:")
     print(long_text.strip())
@@ -683,36 +741,53 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Practical Example: Abstractive Summarization
+    ### Practical Example: Extractive Summarization with Sumy
 
-    Using a pre-trained transformer for abstractive summarization:
+    Using lightweight Sumy library for extractive summarization:
     """)
     return
 
 
 @app.cell
 def _(long_text):
-    from transformers import pipeline
+    from sumy.parsers.plaintext import PlaintextParser
+    from sumy.nlp.tokenizers import Tokenizer
+    from sumy.summarizers.lsa import LsaSummarizer
+    from sumy.summarizers.lex_rank import LexRankSummarizer
+    from sumy.summarizers.text_rank import TextRankSummarizer
 
-    # Load summarization pipeline (using smaller model for demo)
-    summarizer = pipeline(
-        "summarization",
-        model="facebook/bart-large-cnn",
-        device=-1  # Use CPU (-1), or 0 for GPU
-    )
+    # Parse the text
+    parser = PlaintextParser.from_string(long_text.strip(), Tokenizer("english"))
 
-    # Generate abstractive summary
-    abstractive_summary = summarizer(
-        long_text.strip(),
-        max_length=50,
-        min_length=20,
-        do_sample=False
-    )
+    # Try multiple extractive algorithms
+    sentence_count = 2  # Number of sentences in summary
+
+    # LSA (Latent Semantic Analysis) summarization
+    lsa_summarizer = LsaSummarizer()
+    lsa_summary = lsa_summarizer(parser.document, sentence_count)
+
+    # LexRank summarization
+    lexrank_summarizer = LexRankSummarizer()
+    lexrank_summary = lexrank_summarizer(parser.document, sentence_count)
+
+    # TextRank summarization
+    textrank_summarizer = TextRankSummarizer()
+    textrank_summary = textrank_summarizer(parser.document, sentence_count)
 
     print("Original text:")
     print(long_text.strip())
-    print("\nAbstractive summary:")
-    print(abstractive_summary[0]['summary_text'])
+
+    print("\n--- LSA Summary ---")
+    for sentence in lsa_summary:
+        print(sentence)
+
+    print("\n--- LexRank Summary ---")
+    for sentence in lexrank_summary:
+        print(sentence)
+
+    print("\n--- TextRank Summary ---")
+    for sentence in textrank_summary:
+        print(sentence)
     return
 
 
@@ -723,8 +798,8 @@ def _(mo):
 
     **ROUGE Scores (Recall-Oriented Understudy for Gisting Evaluation):**
 
-    - **ROUGE-1:** Overlap of unigrams
-    - **ROUGE-2:** Overlap of bigrams
+    - **ROUGE-1:** Overlap of unigrams (individual words)
+    - **ROUGE-2:** Overlap of bigrams (word pairs)
     - **ROUGE-L:** Longest common subsequence
 
     **Formula:**
@@ -770,9 +845,9 @@ def _(long_text, summary):
     reference = long_text.strip()
     generated = summary
 
-    scores = evaluate_summary(reference, generated)
+    scores_ev = evaluate_summary(reference, generated)
     print("ROUGE Scores:")
-    for metric, score in scores.items():
+    for metric, score in scores_ev.items():
         print(f"{metric}: {score:.3f}")
     return
 
@@ -782,39 +857,39 @@ def _(mo):
     mo.md(r"""
     ### Task 3: Implement Summarization Pipeline
 
-    **Objective:** Create extractive and abstractive summarizers for feedback
+    **Objective:** Create extractive summarizers for feedback using lightweight methods
 
     **Steps:**
 
-    **Extractive Summarizer:**
-    1. Implement TextRank or LexRank algorithm
-    2. Use sentence embeddings for similarity
+    **Extractive Summarizer (Primary Approach):**
+    1. Implement multiple algorithms (TextRank, LexRank, LSA) using Sumy
+    2. Use sentence similarity for ranking important sentences
     3. Extract top N most important sentences
     4. Test on feedback with 5+ sentences
     5. Optimize N based on feedback length
+    6. Compare algorithm performance on your dataset
 
-    **Abstractive Prototype:**
-    1. Load pre-trained model (BART, T5, or Pegasus)
-    2. Configure generation parameters:
-       - max_length: 50-100 tokens
-       - min_length: 20-30 tokens
-       - num_beams: 4
-    3. Test on sample feedback
-    4. Compare with extractive approach
+    **Algorithm Selection:**
+    - **TextRank:** Graph-based, good for general text
+    - **LexRank:** Graph-based with lexical similarity, robust for varied domains
+    - **LSA:** Uses SVD to find latent topics, good for technical content
 
     **Evaluation:**
     1. Calculate ROUGE scores on validation set
     2. Conduct blind human evaluation (5-10 samples)
-    3. Measure inference time per document
-    4. Create comparison table
+    3. Measure inference time per document (should be <0.1s per doc)
+    4. Create comparison table across algorithms
+    5. Choose best algorithm based on ROUGE + human preference
 
     **Deliverables:**
-    - `src/feedback_insights/summarizer.py`
+    - `src/feedback_insights/summarizer.py` with all three algorithms
     - Evaluation notebook with ROUGE scores
     - Human evaluation results (3+ reviewers)
-    - Saved model artifacts
+    - Algorithm comparison visualization
 
     **Acceptance:** ROUGE-L > 0.3 and humans rate 70%+ as useful
+
+    **Note:** Extractive methods are production-ready, fast, and interpretable. For abstractive summarization in production, consider API-based solutions (OpenAI, Cohere) rather than hosting large models.
     """)
     return
 
@@ -858,8 +933,7 @@ def _(mo):
 
 
 @app.cell
-def _():
-    import pandas as pd
+def _(pd):
     import time
 
     def compare_models(models_dict, test_texts, test_labels):
@@ -910,7 +984,7 @@ def _():
     # Example usage note
     print("Model comparison framework ready")
     print("Usage: compare_models(models_dict, test_texts, test_labels)")
-    return (pd,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -922,9 +996,7 @@ def _(mo):
 
 
 @app.cell
-def _(pd):
-    import plotly.graph_objects as go
-
+def _(go, pd):
     # Example comparison data
     comparison_data = {
         'Model': ['Baseline (TF-IDF + LR)', 'DistilBERT', 'RoBERTa'],
@@ -961,7 +1033,7 @@ def _(pd):
     )
 
     fig
-    return comparison_df, go
+    return (comparison_df,)
 
 
 @app.cell
@@ -1184,20 +1256,21 @@ def _(mo):
     ## Sprint 2 Checklist
 
     ### Week 3: Advanced Models
-    - [ ] Set up transformer training environment
-    - [ ] Fine-tune sentiment classifier (DistilBERT/BERT)
+    - [ ] Set up lightweight NLP environment (VADER, Gensim, Sumy)
+    - [ ] Build ensemble sentiment classifier (VADER + TF-IDF)
     - [ ] Evaluate on validation set
     - [ ] Compare with Sprint 1 baseline
-    - [ ] Document improvements and issues
+    - [ ] Document improvements and feature engineering
     - [ ] Begin topic modeling exploration
-    - [ ] Test BERTopic on sample data
+    - [ ] Test Gensim LDA on sample data
 
     ### Week 4: Topic Modeling & Summarization
-    - [ ] Finalize topic modeling pipeline
+    - [ ] Finalize Gensim LDA pipeline
     - [ ] Validate topic coherence (3+ reviewers)
+    - [ ] Compute coherence metrics (C_v score)
     - [ ] Assign meaningful topic labels
-    - [ ] Implement extractive summarizer
-    - [ ] Build abstractive prototype
+    - [ ] Implement extractive summarizers (TextRank, LexRank, LSA)
+    - [ ] Compare summarization algorithms
     - [ ] Calculate ROUGE scores
     - [ ] Human evaluation of summaries
     - [ ] Create comprehensive comparison notebook
@@ -1205,9 +1278,9 @@ def _(mo):
     - [ ] Prepare sprint demo
 
     ### Sprint 2 Demo Preparation
-    - [ ] Show side-by-side baseline vs transformer results
+    - [ ] Show side-by-side baseline vs ensemble results
     - [ ] Present topic clusters with representative examples
-    - [ ] Demonstrate summarization on 3-5 feedback samples
+    - [ ] Demonstrate all 3 summarization algorithms on sample feedback
     - [ ] Display metrics comparison table
     - [ ] Discuss interesting failure cases
     - [ ] Outline Sprint 3 production plan
@@ -1264,23 +1337,27 @@ def _(mo):
 
     ## Additional Resources
 
-    ### Transformers
-    - [Hugging Face Course](https://huggingface.co/course) - Free comprehensive course
-    - [BERT Paper](https://arxiv.org/abs/1810.04805) - Original BERT publication
-    - [DistilBERT Paper](https://arxiv.org/abs/1910.01108) - Smaller, faster BERT
+    ### Sentiment Analysis
+    - [VADER Sentiment](https://github.com/cjhutto/vaderSentiment) - Official documentation
+    - [TextBlob Tutorial](https://textblob.readthedocs.io/) - Simple sentiment API
 
     ### Topic Modeling
-    - [BERTopic Documentation](https://maartengr.github.io/BERTopic/) - Official docs
+    - [Gensim Documentation](https://radimrehurek.com/gensim/) - Official docs
     - [Topic Modeling Guide](https://www.machinelearningplus.com/nlp/topic-modeling-gensim-python/) - Comprehensive tutorial
+    - [LDA Explained](https://towardsdatascience.com/light-on-math-machine-learning-intuitive-guide-to-latent-dirichlet-allocation-437c81220158) - Math intuition
 
     ### Summarization
-    - [The Annotated Transformer](https://nlp.seas.harvard.edu/2018/04/03/attention.html) - Understanding attention
-    - [BART Paper](https://arxiv.org/abs/1910.13461) - Denoising sequence-to-sequence
-    - [Pegasus Paper](https://arxiv.org/abs/1912.08777) - State-of-art summarization
+    - [Sumy Documentation](https://github.com/miso-belica/sumy) - Extractive algorithms
+    - [TextRank Paper](https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf) - Original algorithm
+    - [ROUGE Metrics](https://github.com/google-research/google-research/tree/master/rouge) - Evaluation
 
     ### MLOps
     - [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
     - [Weights & Biases Tutorials](https://wandb.ai/site/tutorials)
+
+    ### Advanced (Optional)
+    - [Hugging Face Course](https://huggingface.co/course) - For transformer learning
+    - [BERT Paper](https://arxiv.org/abs/1810.04805) - Foundational reading
     """)
     return
 
